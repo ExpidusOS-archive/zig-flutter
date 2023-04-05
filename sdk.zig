@@ -37,7 +37,7 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
     \\    "url": "
   );
 
-  try output.appendSlice(getPath("/src/flutter"));
+  try output.appendSlice("file://" ++ getPath("/src/flutter"));
   try output.appendSlice("\",\n");
 
   try output.appendSlice(

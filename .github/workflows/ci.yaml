@@ -28,7 +28,10 @@ jobs:
           path: zig-cache
           key: zig-cache-${{ matrix.os }}-${{ matrix.optimize }}
       - name: Build
-        run: zig build -Doptimize=${{ matrix.optimize }}
+        run: |
+          zig build -Doptimize=${{ matrix.optimize }}
+      - name: Optimize for cache
+        run: rm -rf zig-cache/o/**/src
       - name: Zig Cache Save
         id: zig-cache-save
         uses: actions/cache/save@v3
