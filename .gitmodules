@@ -1,0 +1,6 @@
+[submodule "src/flutter"]
+	path = src/flutter
+	url = https://github.com/flutter/engine
+[submodule "src/depot_tools"]
+	path = src/depot_tools
+	url = https://chromium.googlesource.com/chromium/tools/depot_tools.git
