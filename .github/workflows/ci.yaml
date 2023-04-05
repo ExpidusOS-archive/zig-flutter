@@ -20,9 +20,7 @@ jobs:
         with:
           python-version: 3.10.10
           cache: 'pip'
-      - name: Install Python dependencies
-        run: |
-          pip install httplib2 six
+      - run: pip install -r requirements.txt
       - name: Zig Cache Restore
         id: zig-cache-restore
         uses: actions/cache/restore@v3
