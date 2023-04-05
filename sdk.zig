@@ -33,7 +33,13 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
     \\solutions = [
     \\  {
     \\    "managed": False,
-    \\    "name": "src/flutter",
+    \\    "name": "
+  );
+
+  try output.appendSlice(try std.fs.path.join(b.allocator, &.{ "src", "flutter" }));
+
+  try output.appendSlice(
+    \\",
     \\    "url": "file://
   );
 
