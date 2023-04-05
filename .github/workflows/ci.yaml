@@ -14,7 +14,7 @@ jobs:
         with:
           submodules: true
       - name: Set up Zig
-        uses: goto-bus-stop/setup-zig@v1
+        uses: goto-bus-stop/setup-zig@v2
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
