@@ -5,7 +5,7 @@ jobs:
   build:
     strategy:
       matrix:
-        target: [x86_64-linux-gnu]
+        target: [x86_64-linux-gnu, wasm32-freestanding-musl]
         optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -21,20 +21,6 @@ jobs:
           python-version: 3.10.10
           cache: 'pip'
       - run: pip install -r requirements.txt
-      - name: Zig Cache Restore
-        id: zig-cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: zig-cache
-          key: zig-cache-${{ matrix.os }}-${{ matrix.optimize }}
       - name: Build
         run: |
           zig build -Doptimize=${{ matrix.optimize }} -Dtarget=${{ matrix.target }} -freference-trace -fsummary
-      - name: Optimize for cache
-        run: rm -rf $(dirname $(find zig-cache/o/ -maxdepth 2 -name '.gclient' -type f))
-      - name: Zig Cache Save
-        id: zig-cache-save
-        uses: actions/cache/save@v3
-        with:
-            path: zig-cache
-            key: ${{ steps.zig-cache-restore.outputs.cache-primary-key }}
