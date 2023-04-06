@@ -33,13 +33,19 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
     \\solutions = [
     \\  {
     \\    "managed": False,
-    \\    "name": "
+    \\    "name": "src
   );
+  
+  try output.appendSlice(std.fs.path.sep_str);
 
-  try output.appendSlice(try std.fs.path.join(b.allocator, &.{ "src", "flutter" }));
+  if (std.mem.eql(u8, std.fs.path.sep, "\\")) {
+    try output.appendSlice(std.fs.path.sep_str);
+  }
+
+  try output.appendSlice(std.fs.path.sep_str);
 
   try output.appendSlice(
-    \\",
+    \\flutter",
     \\    "url": "file://
   );
 
@@ -202,9 +208,6 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
   }
 
   child.cwd = try b.cache_root.join(b.allocator, &.{ sub_path });
-
-  std.debug.print("{s}\n", .{ child.cwd.? });
-  for (args.items) |item| std.debug.print("{s}\n", .{ item });
 
   try child.spawn();
 
