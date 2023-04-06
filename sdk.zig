@@ -56,22 +56,20 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
     \\    "custom_deps": {},
     \\    "deps_file": "DEPS",
     \\    "safesync_url": "",
-    \\  },
     \\
   );
 
   if (self.target.getCpu().arch.isWasm()) {
     try output.appendSlice(
-      \\  {
       \\    "custom_vars": {
       \\      "download_emsdk": True,
       \\     },
-      \\  },
       \\
     );
   }
 
   try output.appendSlice(
+    \\  },
     \\]
   );
 
