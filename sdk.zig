@@ -133,7 +133,7 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
       "o", &digest,
     });
 
-    self.source_generated.path = sub_path;
+    self.gclient_generated.path = sub_path;
     return;
   }
 
