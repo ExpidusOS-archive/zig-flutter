@@ -1,0 +1,132 @@
+{
+  "nodes": {
+    "disko": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1679643957,
+        "narHash": "sha256-umr+j/0b3DXQO4VnhRwAJYS0Y2fW64I+ydHnZqpN/Pc=",
+        "owner": "nix-community",
+        "repo": "disko",
+        "rev": "eb5def310c7331545e72090b4cda6cb0255b870d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "disko",
+        "type": "github"
+      }
+    },
+    "expidus-sdk": {
+      "inputs": {
+        "disko": "disko",
+        "flake-utils": "flake-utils",
+        "home-manager": "home-manager",
+        "mobile-nixos": "mobile-nixos",
+        "nixpkgs": "nixpkgs",
+        "zig-overlay": "zig-overlay"
+      },
+      "locked": {
+        "lastModified": 1679707837,
+        "narHash": "sha256-Zu/kBBiWIqPu8fjij4C7gHGSBvelv8XjTWuzQt6XF+8=",
+        "owner": "ExpidusOS",
+        "repo": "sdk",
+        "rev": "901d9b2c762086b1ea0878a1055a4fbf4ce48664",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ExpidusOS",
+        "ref": "feat/refactor-neutron",
+        "repo": "sdk",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1678901627,
+        "narHash": "sha256-U02riOqrKKzwjsxc/400XnElV+UtPUQWpANPlyazjH0=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "93a2b84fc4b70d9e089d029deacc3583435c2ed6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "home-manager": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1679067101,
+        "narHash": "sha256-tMI1inGT9u4KWQml0w30dhWqQPlth1e9K/68sfDkEQA=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "9154cd519a8942728038819682d6b3ff33f321bb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "ref": "release-22.11",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "mobile-nixos": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1679516998,
+        "narHash": "sha256-w4baQlS84X8Lf0E5RN0nGkx03luDuV1X0+jWMAXm6fs=",
+        "owner": "NixOS",
+        "repo": "mobile-nixos",
+        "rev": "7a6e97e3af73c4cca87e12c83abcb4913dac7dbc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "mobile-nixos",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1678408936,
+        "narHash": "sha256-IkLRXSXyBk4xiTvYYzXH/pffXjjLnygogbwm840gObQ=",
+        "owner": "ExpidusOS",
+        "repo": "nixpkgs",
+        "rev": "afb813e67033a3c48dd7b417869fe51b607786cb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ExpidusOS",
+        "ref": "nixos-22.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "expidus-sdk": "expidus-sdk"
+      }
+    },
+    "zig-overlay": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1679669017,
+        "narHash": "sha256-FUvrE/4HKsrl/CedvQuoJa+vDr9lM7elI28cJs9uSHs=",
+        "owner": "mitchellh",
+        "repo": "zig-overlay",
+        "rev": "810cecd27319cb79feb4a8e79ac7ad40c7826235",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mitchellh",
+        "repo": "zig-overlay",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

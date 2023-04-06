@@ -3,12 +3,14 @@ const Build = std.Build;
 const Sdk = @This();
 
 build: *Build,
+args: ?[][]const u8,
 target: std.zig.CrossTarget,
 optimize: std.builtin.OptimizeMode,
 gclient_step: Build.Step,
 gclient_generated: Build.GeneratedFile,
 source_step: Build.Step,
 source_generated: Build.GeneratedFile,
+generated: Build.GeneratedFile,
 step: Build.Step,
 
 fn getPath(comptime suffix: []const u8) []const u8 {
@@ -229,12 +231,146 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
   try man.writeManifest();
 }
 
+fn make(step: *Build.Step, _: *std.Progress.Node) !void {
+  const self = @fieldParentPtr(Sdk, "step", step);
+  const b = step.owner;
+
+  var man = b.cache.obtain();
+  defer man.deinit();
+
+  var args = std.ArrayList([]const u8).init(b.allocator);
+  defer args.deinit();
+
+  try args.append(getPath("/src/depot_tools/vpython3"));
+  try args.append(try std.fs.path.join(b.allocator, &.{
+    self.source_generated.getPath(),
+    "src", "flutter", "tools",
+    "gn"
+  }));
+
+  try args.append("--no-goma");
+
+  try args.append("--depot-tools");
+  try args.append(getPath("/src/depot_tools"));
+
+  try args.append("--runtime-mode");
+  try args.append(switch (self.optimize) {
+    .Debug => "debug",
+    .ReleaseSafe => "profile",
+    .ReleaseFast => "jit_release",
+    .ReleaseSmall => "release",
+  });
+
+  if (self.target.getCpuArch().isWasm()) try args.append("--web");
+
+  const target_flag = if (self.target.getAbi() == .android) "android"
+    else if (self.target.getCpuArch().isWasm()) "wasm"
+    else switch (self.target.getOsTag()) {
+      .fuchsia => "fuchsia",
+      .linux => "linux",
+      .macos => "mac",
+      .ios => "ios",
+      .windows => "win",
+      else => return step.fail("target {s} is not supported", .{ try self.target.zigTriple(b.allocator) }),
+    };
+
+  try args.append("--target-os");
+  try args.append(target_flag);
+
+  const cpu_flag = switch (self.target.getCpuArch()) {
+    .arm, .armeb => "arm",
+    .aarch64, .aarch64_be, .aarch64_32 => "aarch64",
+    .x86 => "x86",
+    .x86_64 => "x64",
+    .wasm32, .wasm64 => null,
+    else => return step.fail("target {s} is not supported", .{ try self.target.zigTriple(b.allocator) }),
+  };
+
+  if (cpu_flag) |value| {
+    try args.append(b.fmt("--{s}-cpu", .{ target_flag }));
+    try args.append(value);
+  }
+
+  try args.append("--target-triple");
+  try args.append(try self.target.linuxTriple(b.allocator));
+
+  if (self.build.sysroot) |sysroot| {
+    try args.append("--target-sysroot");
+    try args.append(sysroot);
+  }
+
+  man.hash.addBytes("flutter-source-");
+  man.hash.addBytes(self.source_generated.getPath());
+
+  if (self.args) |arr| {
+    for (arr) |item| try args.append(item);
+  }
+
+  for (args.items) |item| {
+    man.hash.addBytes(item);
+    std.debug.print("{s}\n", .{ item });
+  }
+
+  if (try step.cacheHit(&man)) {
+    const digest = man.final();
+    const sub_path = try b.cache_root.join(b.allocator, &.{
+      "o", &digest,
+    });
+
+    self.generated.path = sub_path;
+    return;
+  }
+
+  const digest = man.final();
+  const sub_path = try b.cache_root.join(b.allocator, &.{
+    "o", &digest,
+  });
+
+  b.cache_root.handle.makePath(sub_path) catch |err| {
+    return step.fail("unable to make path '{}{s}': {s}", .{
+      b.cache_root, sub_path, @errorName(err),
+    });
+  };
+
+  self.generated.path = sub_path;
+
+  try args.append("--out-dir");
+  try args.append(sub_path);
+
+  var child = std.ChildProcess.init(args.items, b.allocator);
+  child.stdin_behavior = .Ignore;
+  child.stdout_behavior = .Pipe;
+  child.stderr_behavior = .Inherit;
+  child.cwd = sub_path;
+
+  try child.spawn();
+
+  const term = try child.wait();
+  switch (term) {
+    .Exited => |code| {
+      if (code != 0) {
+        return step.fail("process exited with code {}", .{
+          code
+        });
+      }
+    },
+    .Signal, .Stopped, .Unknown => |code| {
+      return step.fail("process was terminated {}", .{
+        code
+      });
+    }
+  }
+
+  try man.writeManifest();
+}
+
 pub fn new(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) !*Sdk {
   const self = try b.allocator.create(Sdk);
   self.* = .{
     .build = b,
     .target = target,
     .optimize = optimize,
+    .args = null,
     .gclient_step = Build.Step.init(.{
       .id = .custom,
       .name = "Generate gclient",
@@ -257,7 +393,11 @@ pub fn new(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.Optimiz
       .id = .custom,
       .name = "Flutter Engine",
       .owner = b,
+      .makeFn = make,
     }),
+    .generated = .{
+      .step = &self.step,
+    },
   };
 
   self.source_step.dependOn(&self.gclient_step);
