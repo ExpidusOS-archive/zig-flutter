@@ -5,9 +5,9 @@ jobs:
   build:
     strategy:
       matrix:
+        target: [x86_64-linux-gnu]
         optimize: [Debug, ReleaseSafe, ReleaseFast, ReleaseSmall]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
@@ -29,9 +29,9 @@ jobs:
           key: zig-cache-${{ matrix.os }}-${{ matrix.optimize }}
       - name: Build
         run: |
-          zig build -Doptimize=${{ matrix.optimize }}
+          zig build -Doptimize=${{ matrix.optimize }} -Dtarget=${{ matrix.target }} -freference-trace -fsummary
       - name: Optimize for cache
-        run: rm -rf zig-cache/o/**/src
+        run: rm -rf $(dirname $(find zig-cache/o/ -maxdepth 2 -name '.gclient' -type f))
       - name: Zig Cache Save
         id: zig-cache-save
         uses: actions/cache/save@v3
