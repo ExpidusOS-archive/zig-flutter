@@ -133,7 +133,7 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
       "o", &digest,
     });
 
-    self.gclient_generated.path = sub_path;
+    self.source_generated.path = sub_path;
     return;
   }
 
@@ -225,7 +225,7 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
     }
   }
 
-  self.gclient_generated.path = child.cwd;
+  self.source_generated.path = child.cwd;
   try man.writeManifest();
 }
 
