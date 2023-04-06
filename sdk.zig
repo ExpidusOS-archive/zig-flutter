@@ -38,11 +38,9 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
   
   try output.appendSlice(std.fs.path.sep_str);
 
-  if (std.mem.eql(u8, std.fs.path.sep, "\\")) {
+  if (std.mem.eql(u8, std.fs.path.sep_str, "\\")) {
     try output.appendSlice(std.fs.path.sep_str);
   }
-
-  try output.appendSlice(std.fs.path.sep_str);
 
   try output.appendSlice(
     \\flutter",
