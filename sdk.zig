@@ -10,6 +10,40 @@ pub const Options = struct {
   global_cache: bool = false,
 };
 
+pub const InstallStep = struct {
+  sdk: *Sdk,
+  step: Build.Step,
+
+  pub fn create(sdk: *Sdk) !*InstallStep {
+    if (sdk.install_step) |s| return s;
+
+    const self = try sdk.build.allocator.create(InstallStep);
+    self.* = .{
+      .sdk = sdk,
+      .step = Build.Step.init(.{
+        .id = .custom,
+        .name = sdk.build.fmt("install {s}", .{ sdk.step.name }),
+        .owner = sdk.build,
+        .makeFn = InstallStep.make,
+      }),
+    };
+
+    self.step.dependOn(&sdk.step);
+    return self;
+  }
+
+  fn make(step: *Build.Step, prog_node: *std.Progress.Node) !void {
+    const self = @fieldParentPtr(InstallStep, "step", step);
+    var tmp = Build.InstallDirStep.init(step.owner, .{
+      .source_dir = self.sdk.generated.getPath(),
+      .install_dir = .lib,
+      .install_subdir = "flutter",
+    });
+
+    return tmp.step.make(prog_node);
+  }
+};
+
 build: *Build,
 options: Options,
 gclient_step: Build.Step,
@@ -18,6 +52,7 @@ source_step: Build.Step,
 source_generated: Build.GeneratedFile,
 generated: Build.GeneratedFile,
 step: Build.Step,
+install_step: ?*InstallStep,
 
 fn getPath(comptime suffix: []const u8) []const u8 {
   if (suffix[0] != '/') @compileError("path requires an absolute path!");
@@ -321,7 +356,11 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
       "o", &digest,
     });
 
-    self.generated.path = sub_path;
+    self.generated.path = try std.fs.path.join(b.allocator, &.{
+      sub_path,
+      "out",
+      b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
+    });
     return;
   }
 
@@ -336,7 +375,11 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     });
   };
 
-  self.generated.path = sub_path;
+  self.generated.path = try std.fs.path.join(b.allocator, &.{
+    sub_path,
+    "out",
+    b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
+  });
 
   try args.append("--out-dir");
   try args.append(sub_path);
@@ -401,11 +444,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   child = std.ChildProcess.init(&.{
     ninja,
     "-C",
-    try std.fs.path.join(b.allocator, &.{
-      sub_path,
-      "out",
-      b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
-    }),
+    self.generated.getPath(),
   }, b.allocator);
   child.stdin_behavior = .Ignore;
   child.stdout_behavior = .Inherit;
@@ -471,9 +510,17 @@ pub fn new(options: Options) !*Sdk {
     .generated = .{
       .step = &self.step,
     },
+    .install_step = null,
   };
 
   self.source_step.dependOn(&self.gclient_step);
   self.step.dependOn(&self.source_step);
   return self;
+}
+
+pub fn install(self: *Sdk) void {
+  if (self.install_step != null) return;
+
+  self.install_step = InstallStep.create(self) catch @panic("OOM");
+  self.build.getInstallStep().dependOn(&self.install_step.?.step);
 }

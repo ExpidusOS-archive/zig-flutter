@@ -11,5 +11,7 @@ pub fn build(b: *Build) !void {
     .target = target,
     .optimize = optimize,
   });
+
   b.default_step.dependOn(&sdk.step);
+  sdk.install();
 }
