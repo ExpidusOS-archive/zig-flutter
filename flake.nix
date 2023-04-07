@@ -32,7 +32,7 @@
 
         # Keep up to date with submodules
         sources = {
-          "depot_tools" = pkgs.fetchGit {
+          "depot_tools" = pkgs.fetchgit {
             name = "depot_tools";
             url = "https://chromium.googlesource.com/chromium/tools/depot_tools.git";
             rev = "61ebd177abdc56bd373fc05c0101e2e506f9d758";
