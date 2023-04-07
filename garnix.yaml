@@ -1,2 +1,3 @@
 builds:
-  - 'packages.x86_64-linux.*'
+  include:
+    - 'packages.x86_64-linux.*'
