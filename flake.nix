@@ -23,6 +23,8 @@
           zigpkgs.master
           (python3.withPackages (p: [ p.httplib2 p.six ]))
           pkg-config
+          ninja
+          zlib
         ];
       in {
         devShells.default = (pkgs.buildFHSUserEnv {

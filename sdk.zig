@@ -2,10 +2,16 @@ const std = @import("std");
 const Build = std.Build;
 const Sdk = @This();
 
+pub const Options = struct {
+  builder: *Build,
+  gn_args: ?[][]const u8 = null,
+  target: std.zig.CrossTarget,
+  optimize: std.builtin.OptimizeMode,
+  global_cache: bool = false,
+};
+
 build: *Build,
-args: ?[][]const u8,
-target: std.zig.CrossTarget,
-optimize: std.builtin.OptimizeMode,
+options: Options,
 gclient_step: Build.Step,
 gclient_generated: Build.GeneratedFile,
 source_step: Build.Step,
@@ -59,7 +65,7 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
     \\
   );
 
-  if (self.target.getCpu().arch.isWasm()) {
+  if (self.options.target.getCpu().arch.isWasm()) {
     try output.appendSlice(
       \\    "custom_vars": {
       \\      "download_emsdk": True,
@@ -76,7 +82,7 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
   man.hash.addBytes(output.items);
   if (try step.cacheHit(&man)) {
     const digest = man.final();
-    const sub_path = try b.cache_root.join(b.allocator, &.{
+    const sub_path = try self.getCacheDir().join(b.allocator, &.{
       "o", &digest, "gclient",
     });
 
@@ -88,19 +94,19 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
   const sub_path = try std.fs.path.join(b.allocator, &.{ "o", &digest, "gclient" });
   const sub_path_dirname = std.fs.path.dirname(sub_path).?;
 
-  b.cache_root.handle.makePath(sub_path_dirname) catch |err| {
+  self.getCacheDir().handle.makePath(sub_path_dirname) catch |err| {
     return step.fail("unable to make path '{}{s}': {s}", .{
-      b.cache_root, sub_path_dirname, @errorName(err),
+      self.getCacheDir(), sub_path_dirname, @errorName(err),
     });
   };
 
-  b.cache_root.handle.writeFile(sub_path, output.items) catch |err| {
+  self.getCacheDir().handle.writeFile(sub_path, output.items) catch |err| {
     return step.fail("unable to write file '{}{s}': {s}", .{
-      b.cache_root, sub_path, @errorName(err),
+      self.getCacheDir(), sub_path, @errorName(err),
     });
   };
 
-  self.gclient_generated.path = try b.cache_root.join(b.allocator, &.{ sub_path });
+  self.gclient_generated.path = try self.getCacheDir().join(b.allocator, &.{ sub_path });
   try man.writeManifest();
 }
 
@@ -116,9 +122,9 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
 
   // TODO: use temp dir to find the hash
   man.hash.addBytes("flutter-source-");
-  man.hash.addBytes(try self.target.zigTriple(b.allocator));
+  man.hash.addBytes(try self.options.target.zigTriple(b.allocator));
   man.hash.addBytes("-");
-  man.hash.addBytes(switch (self.optimize) {
+  man.hash.addBytes(switch (self.options.optimize) {
     .Debug => "debug",
     .ReleaseSafe => "release-safe",
     .ReleaseFast => "release-fast",
@@ -129,7 +135,7 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
 
   if (try step.cacheHit(&man)) {
     const digest = man.final();
-    const sub_path = try b.cache_root.join(b.allocator, &.{
+    const sub_path = try self.getCacheDir().join(b.allocator, &.{
       "o", &digest,
     });
 
@@ -140,9 +146,9 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
   const digest = man.final();
   const sub_path = try std.fs.path.join(b.allocator, &.{ "o", &digest });
 
-  b.cache_root.handle.makePath(sub_path) catch |err| {
+  self.getCacheDir().handle.makePath(sub_path) catch |err| {
     return step.fail("unable to make path '{}{s}': {s}", .{
-      b.cache_root, sub_path, @errorName(err),
+      self.getCacheDir(), sub_path, @errorName(err),
     });
   };
 
@@ -153,9 +159,9 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
   defer b.allocator.free(gclient);
   _ = try gclient_in.readAll(gclient);
 
-  b.cache_root.handle.writeFile(try std.fs.path.join(b.allocator, &.{ sub_path, ".gclient" }), gclient) catch |err| {
+  self.getCacheDir().handle.writeFile(try std.fs.path.join(b.allocator, &.{ sub_path, ".gclient" }), gclient) catch |err| {
     return step.fail("unable to write file '{}{s}/.gclient': {s}", .{
-      b.cache_root, sub_path, @errorName(err),
+      self.getCacheDir(), sub_path, @errorName(err),
     });
   };
 
@@ -205,7 +211,7 @@ fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
     }));
   }
 
-  child.cwd = try b.cache_root.join(b.allocator, &.{ sub_path });
+  child.cwd = try self.getCacheDir().join(b.allocator, &.{ sub_path });
 
   try child.spawn();
 
@@ -252,37 +258,39 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   try args.append("--depot-tools");
   try args.append(getPath("/src/depot_tools"));
 
-  try args.append("--runtime-mode");
-  try args.append(switch (self.optimize) {
+  const debug_flag = switch (self.options.optimize) {
     .Debug => "debug",
     .ReleaseSafe => "profile",
     .ReleaseFast => "jit_release",
     .ReleaseSmall => "release",
-  });
+  };
 
-  if (self.target.getCpuArch().isWasm()) try args.append("--web");
+  try args.append("--runtime-mode");
+  try args.append(debug_flag);
 
-  const target_flag = if (self.target.getAbi() == .android) "android"
-    else if (self.target.getCpuArch().isWasm()) "wasm"
-    else switch (self.target.getOsTag()) {
+  if (self.options.target.getCpuArch().isWasm()) try args.append("--web");
+
+  const target_flag = if (self.options.target.getAbi() == .android) "android"
+    else if (self.options.target.getCpuArch().isWasm()) "wasm"
+    else switch (self.options.target.getOsTag()) {
       .fuchsia => "fuchsia",
       .linux => "linux",
       .macos => "mac",
       .ios => "ios",
       .windows => "win",
-      else => return step.fail("target {s} is not supported", .{ try self.target.zigTriple(b.allocator) }),
+      else => return step.fail("target {s} is not supported", .{ try self.options.target.zigTriple(b.allocator) }),
     };
 
   try args.append("--target-os");
   try args.append(target_flag);
 
-  const cpu_flag = switch (self.target.getCpuArch()) {
+  const cpu_flag = switch (self.options.target.getCpuArch()) {
     .arm, .armeb => "arm",
     .aarch64, .aarch64_be, .aarch64_32 => "aarch64",
     .x86 => "x86",
     .x86_64 => "x64",
     .wasm32, .wasm64 => null,
-    else => return step.fail("target {s} is not supported", .{ try self.target.zigTriple(b.allocator) }),
+    else => return step.fail("target {s} is not supported", .{ try self.options.target.zigTriple(b.allocator) }),
   };
 
   if (cpu_flag) |value| {
@@ -291,7 +299,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   }
 
   try args.append("--target-triple");
-  try args.append(try self.target.linuxTriple(b.allocator));
+  try args.append(try self.options.target.linuxTriple(b.allocator));
 
   if (self.build.sysroot) |sysroot| {
     try args.append("--target-sysroot");
@@ -301,7 +309,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   man.hash.addBytes("flutter-source-");
   man.hash.addBytes(self.source_generated.getPath());
 
-  if (self.args) |arr| {
+  if (self.options.gn_args) |arr| {
     for (arr) |item| try args.append(item);
   }
 
@@ -309,7 +317,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
 
   if (try step.cacheHit(&man)) {
     const digest = man.final();
-    const sub_path = try b.cache_root.join(b.allocator, &.{
+    const sub_path = try self.getCacheDir().join(b.allocator, &.{
       "o", &digest,
     });
 
@@ -318,13 +326,13 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   }
 
   const digest = man.final();
-  const sub_path = try b.cache_root.join(b.allocator, &.{
+  const sub_path = try self.getCacheDir().join(b.allocator, &.{
     "o", &digest,
   });
 
-  b.cache_root.handle.makePath(sub_path) catch |err| {
+  self.getCacheDir().handle.makePath(sub_path) catch |err| {
     return step.fail("unable to make path '{}{s}': {s}", .{
-      b.cache_root, sub_path, @errorName(err),
+      self.getCacheDir(), sub_path, @errorName(err),
     });
   };
 
@@ -370,7 +378,44 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
 
   try child.spawn();
 
-  const term = try child.wait();
+  var term = try child.wait();
+  switch (term) {
+    .Exited => |code| {
+      if (code != 0) {
+        return step.fail("process exited with code {}", .{
+          code
+        });
+      }
+    },
+    .Signal, .Stopped, .Unknown => |code| {
+      return step.fail("process was terminated {}", .{
+        code
+      });
+    }
+  }
+
+  const ninja = try b.findProgram(&.{
+    "ninja",
+  }, &.{});
+
+  child = std.ChildProcess.init(&.{
+    ninja,
+    "-C",
+    try std.fs.path.join(b.allocator, &.{
+      sub_path,
+      "out",
+      b.fmt("{s}_${s}", .{ target_flag, debug_flag }),
+    }),
+  }, b.allocator);
+  child.stdin_behavior = .Ignore;
+  child.stdout_behavior = .Inherit;
+  child.stderr_behavior = .Inherit;
+  child.cwd = sub_path;
+  child.env_map = &env_map;
+
+  try child.spawn();
+
+  term = try child.wait();
   switch (term) {
     .Exited => |code| {
       if (code != 0) {
@@ -389,17 +434,20 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   try man.writeManifest();
 }
 
-pub fn new(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode) !*Sdk {
-  const self = try b.allocator.create(Sdk);
+fn getCacheDir(self: *Sdk) *Build.Cache.Directory {
+  return if (self.options.global_cache) &self.build.global_cache_root
+    else &self.build.cache_root;
+}
+
+pub fn new(options: Options) !*Sdk {
+  const self = try options.builder.allocator.create(Sdk);
   self.* = .{
-    .build = b,
-    .target = target,
-    .optimize = optimize,
-    .args = null,
+    .build = options.builder,
+    .options = options,
     .gclient_step = Build.Step.init(.{
       .id = .custom,
       .name = "Generate gclient",
-      .owner = b,
+      .owner = options.builder,
       .makeFn = gclient_make,
     }),
     .gclient_generated = .{
@@ -408,7 +456,7 @@ pub fn new(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.Optimiz
     .source_step = Build.Step.init(.{
       .id = .custom,
       .name = "gclient sync",
-      .owner = b,
+      .owner = options.builder,
       .makeFn = source_make,
     }),
     .source_generated = .{
@@ -417,7 +465,7 @@ pub fn new(b: *Build, target: std.zig.CrossTarget, optimize: std.builtin.Optimiz
     .step = Build.Step.init(.{
       .id = .custom,
       .name = "Flutter Engine",
-      .owner = b,
+      .owner = options.builder,
       .makeFn = make,
     }),
     .generated = .{
