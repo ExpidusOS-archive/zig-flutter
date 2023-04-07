@@ -21,6 +21,8 @@ jobs:
           python-version: 3.10.10
           cache: 'pip'
       - run: pip install -r requirements.txt
+      - name: Install build dependencies
+        run: sudo apt install -y zlib1g ninja-build
       - name: Build
         run: |
           zig build -Doptimize=${{ matrix.optimize }} -Dtarget=${{ matrix.target }} -freference-trace -fsummary
