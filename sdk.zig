@@ -247,6 +247,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   }));
 
   try args.append("--no-goma");
+  try args.append("--no-prebuilt-dart-sdk");
 
   try args.append("--depot-tools");
   try args.append(getPath("/src/depot_tools"));
@@ -304,10 +305,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     for (arr) |item| try args.append(item);
   }
 
-  for (args.items) |item| {
-    man.hash.addBytes(item);
-    std.debug.print("{s}\n", .{ item });
-  }
+  for (args.items) |item| man.hash.addBytes(item);
 
   if (try step.cacheHit(&man)) {
     const digest = man.final();
@@ -337,7 +335,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
 
   var child = std.ChildProcess.init(args.items, b.allocator);
   child.stdin_behavior = .Ignore;
-  child.stdout_behavior = .Pipe;
+  child.stdout_behavior = .Inherit;
   child.stderr_behavior = .Inherit;
   child.cwd = sub_path;
 
