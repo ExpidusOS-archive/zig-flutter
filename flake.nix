@@ -22,6 +22,7 @@
         targetPkgs = pkgs: with pkgs; [
           zigpkgs.master
           (python3.withPackages (p: [ p.httplib2 p.six ]))
+          pkg-config
         ];
       in {
         devShells.default = (pkgs.buildFHSUserEnv {

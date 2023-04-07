@@ -333,11 +333,40 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   try args.append("--out-dir");
   try args.append(sub_path);
 
+  for (args.items, 0..) |item, i| {
+    if (args.items.len == i + 1) std.debug.print("{s}\n", .{ item })
+    else std.debug.print("{s} ", .{ item });
+  }
+
+  var env_map = std.process.EnvMap.init(b.allocator);
+
   var child = std.ChildProcess.init(args.items, b.allocator);
   child.stdin_behavior = .Ignore;
   child.stdout_behavior = .Inherit;
   child.stderr_behavior = .Inherit;
   child.cwd = sub_path;
+  child.env_map = &env_map;
+
+  const hostenv = try std.process.getEnvMap(b.allocator);
+
+  var env_iter = hostenv.iterator();
+  while (env_iter.next()) |item| {
+    if (std.mem.eql(u8, item.key_ptr.*, "PATH")) {
+      try env_map.put(item.key_ptr.*, try std.mem.join(b.allocator, ":", &.{
+        getPath("/src/depot_tools"),
+        item.value_ptr.*
+      }));
+    } else {
+      try env_map.put(item.key_ptr.*, item.value_ptr.*);
+    }
+  }
+
+  if (env_map.get("PATH")) |path| {
+    try env_map.put("PATH", try std.mem.join(b.allocator, ":", &.{
+      getPath("/src/depot_tools"),
+      path
+    }));
+  }
 
   try child.spawn();
 
