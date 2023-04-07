@@ -404,7 +404,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     try std.fs.path.join(b.allocator, &.{
       sub_path,
       "out",
-      b.fmt("{s}_${s}", .{ target_flag, debug_flag }),
+      b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
     }),
   }, b.allocator);
   child.stdin_behavior = .Ignore;
