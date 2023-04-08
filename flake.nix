@@ -107,6 +107,8 @@
                 export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
                 ${fhsEnv}/bin/${fhsEnv.name} build source --prefix $out -Dgclient=$gclient $buildFlags
 
+                find $out -name '*.pyc' -type f -delete
+                find $out -name 'package_config.json' -type f -exec sed -i '/"generated": /d' {} \;
                 find $out -name '.git' -type d -exec ${pkgs.writeShellScript "fake-git" ''
                   src=$1
                   rm -rf $src
