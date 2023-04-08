@@ -69,7 +69,7 @@ pub const SourceInstallStep = struct {
   fn make(step: *Build.Step, prog_node: *std.Progress.Node) !void {
     const self = @fieldParentPtr(SourceInstallStep, "step", step);
     var tmp = Build.InstallDirStep.init(step.owner, .{
-      .source_dir = try std.fs.path.join(b.allocator, &.{ 
+      .source_dir = try std.fs.path.join(step.owner.allocator, &.{ 
         self.sdk.source_generated.getPath(),
         "src",
       }),
