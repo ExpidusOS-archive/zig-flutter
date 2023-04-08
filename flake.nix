@@ -111,6 +111,7 @@
               dontFixup = true;
 
               outputHashAlgo = "sha256";
+              outputHashMode = "recursive";
               outputHash = fakeHash;
             };
           in pkgs.stdenv.mkDerivation {
