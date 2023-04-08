@@ -107,12 +107,14 @@
                 export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
                 ${fhsEnv}/bin/${fhsEnv.name} build source --prefix $out -Dgclient=$gclient $buildFlags
 
-                find $out -name '.git' -type d | xargs ${pkgs.writeShellScript "fake-git" ''
+                find $out -name '.git' -type d -exec ${pkgs.writeShellScript "fake-git" ''
                   src=$1
+                  echo $1
                   rm -rf $src
                   mkdir -p $src/logs
                   echo "${fakeHash}" >$src/logs/HEAD
-                ''}
+                  ls $src
+                ''} {} \;
 
                 cp ${pkgs.writeText "fake-git.py" ''
                   #!${pkgs.python3}/bin/python3
@@ -142,12 +144,17 @@
           packages = {
             default = mkPkg {
               target = null;
+              engineHash = "sha256-PiE7TaKUBHHTbCa2I5s2UQEJI6L+/VSduwweUN8fv5A=";
             };
           } // mapAttrs (target: cfg: mkPkg (cfg // {
             inherit target;
           })) {
             "wasm32-freestanding-musl" = {
               engineHash = fakeHash;
+              buildFlags = [];
+            };
+            "x86_64-linux-gnu" = {
+              engineHash = "sha256-PiE7TaKUBHHTbCa2I5s2UQEJI6L+/VSduwweUN8fv5A=";
               buildFlags = [];
             };
           };
