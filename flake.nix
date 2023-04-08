@@ -71,10 +71,10 @@
           done
         '';
 
-        mkPkg = target:
+        mkPkg = { target ? null, engineHash ? fakeHash, buildFlags ? [] }@args:
           let
             src = cleanSource self;
-            buildFlags = optional (target != null) "-Dtarget=${target}";
+            buildFlags = (args.buildFlags or []) ++ optional (target != null) "-Dtarget=${target}";
 
             passthru = {
               inherit sources;
@@ -112,7 +112,7 @@
 
               outputHashAlgo = "sha256";
               outputHashMode = "recursive";
-              outputHash = fakeHash;
+              outputHash = engineHash;
             };
           in pkgs.stdenv.mkDerivation {
             pname = "zig-flutter${optionalString (target != null) "-${target}"}";
@@ -127,7 +127,16 @@
           };
 
           packages = {
-            default = mkPkg null;
+            default = mkPkg {
+              target = null;
+            };
+          } // mapAttrs (target: cfg: mkPkg (cfg // {
+            inherit target;
+          })) {
+            "wasm32-freestanding-musl" = {
+              engineHash = fakeHash;
+              buildFlags = [];
+            };
           };
       in {
         inherit packages;
