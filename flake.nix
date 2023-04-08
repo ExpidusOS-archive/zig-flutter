@@ -114,7 +114,7 @@
                   echo "${fakeHash}" >$src/logs/HEAD
                 ''}
 
-                cp ${pkgs.writeTextFile "fake-git.py" ''
+                cp ${pkgs.writeShellScript "fake-git.py" ''
                   #!${pkgs.python3}/bin/python3
 
                   print("${fakeHash}")
