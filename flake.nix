@@ -107,7 +107,18 @@
                 export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
                 ${fhsEnv}/bin/${fhsEnv.name} build source --prefix $out -Dgclient=$gclient $buildFlags
 
-                find $out -name '.git' -type d | xargs rm -rf
+                find $out -name '.git' -type d | xargs ${pkgs.writeShellScript "fake-git" ''
+                  src=$1
+                  rm -rf $src
+                  mkdir -p $src/logs
+                  echo "${fakeHash}" >$src/logs/HEAD
+                ''}
+
+                cp ${pkgs.writeTextFile "fake-git.py" ''
+                  #!${pkgs.python3}/bin/python3
+
+                  print("${fakeHash}")
+                ''} $out/src/flutter/build/git_revision.py
               '';
 
               dontFixup = true;
