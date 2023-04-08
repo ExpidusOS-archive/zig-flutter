@@ -30,6 +30,7 @@
             ninja
             zlib
             git
+            curl
             (writeShellScriptBin "ssh" ''
               if [ ! -f id_rsa ]; then
                 ${openssh}/bin/ssh-keygen -t rsa -N "" -f id_rsa > /dev/null
@@ -64,6 +65,10 @@
             rm -rf $NIX_BUILD_TOP/source/src/${path}
             cp -r -P --no-preserve=ownership,mode ${src} $NIX_BUILD_TOP/source/src/${path}
           '') sources))}
+
+          for name in cipd vpython3; do
+            chmod +x $NIX_BUILD_TOP/source/src/depot_tools/$name
+          done
         '';
 
         mkPkg = target:
