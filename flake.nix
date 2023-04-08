@@ -109,11 +109,9 @@
 
                 find $out -name '.git' -type d -exec ${pkgs.writeShellScript "fake-git" ''
                   src=$1
-                  echo $1
                   rm -rf $src
                   mkdir -p $src/logs
                   echo "${fakeHash}" >$src/logs/HEAD
-                  ls $src
                 ''} {} \;
 
                 cp ${pkgs.writeText "fake-git.py" ''
@@ -144,7 +142,7 @@
           packages = {
             default = mkPkg {
               target = null;
-              engineHash = "sha256-PiE7TaKUBHHTbCa2I5s2UQEJI6L+/VSduwweUN8fv5A=";
+              engineHash = "sha256-7q9ZzhylpNGTsJ20e8jYP3TDA0MZ+60QMJo+IMUTI3o=";
             };
           } // mapAttrs (target: cfg: mkPkg (cfg // {
             inherit target;
@@ -154,7 +152,7 @@
               buildFlags = [];
             };
             "x86_64-linux-gnu" = {
-              engineHash = "sha256-PiE7TaKUBHHTbCa2I5s2UQEJI6L+/VSduwweUN8fv5A=";
+              engineHash = "sha256-7q9ZzhylpNGTsJ20e8jYP3TDA0MZ+60QMJo+IMUTI3o=";
               buildFlags = [];
             };
           };
