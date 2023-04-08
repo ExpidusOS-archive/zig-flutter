@@ -62,7 +62,7 @@ pub const SourceInstallStep = struct {
       .subdir = subdir,
     };
 
-    self.step.dependOn(&sdk.step);
+    self.step.dependOn(&sdk.source_step);
     return self;
   }
 
