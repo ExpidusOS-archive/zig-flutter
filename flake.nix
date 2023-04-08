@@ -106,6 +106,8 @@
               installPhase = ''
                 export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
                 ${fhsEnv}/bin/${fhsEnv.name} build source --prefix $out -Dgclient=$gclient $buildFlags
+
+                find $out -name '.git' -type d | xargs rm -rf
               '';
 
               dontFixup = true;
