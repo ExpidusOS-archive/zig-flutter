@@ -44,6 +44,40 @@ pub const InstallStep = struct {
   }
 };
 
+pub const SourceInstallStep = struct {
+  sdk: *Sdk,
+  step: Build.Step,
+  subdir: []const u8,
+
+  pub fn create(sdk: *Sdk, subdir: []const u8) !*SourceInstallStep {
+    const self = try sdk.build.allocator.create(SourceInstallStep);
+    self.* = .{
+      .sdk = sdk,
+      .step = Build.Step.init(.{
+        .id = .custom,
+        .name = sdk.build.fmt("install {s}", .{ sdk.step.name }),
+        .owner = sdk.build,
+        .makeFn = SourceInstallStep.make,
+      }),
+      .subdir = subdir,
+    };
+
+    self.step.dependOn(&sdk.step);
+    return self;
+  }
+
+  fn make(step: *Build.Step, prog_node: *std.Progress.Node) !void {
+    const self = @fieldParentPtr(SourceInstallStep, "step", step);
+    var tmp = Build.InstallDirStep.init(step.owner, .{
+      .source_dir = self.sdk.source_generated.getPath(),
+      .install_dir = .prefix,
+      .install_subdir = self.subdir,
+    });
+
+    return tmp.step.make(prog_node);
+  }
+};
+
 build: *Build,
 options: Options,
 gclient_step: Build.Step,
@@ -65,6 +99,8 @@ fn getPath(comptime suffix: []const u8) []const u8 {
 fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
   const self = @fieldParentPtr(Sdk, "gclient_step", step);
   const b = step.owner;
+
+  if (self.gclient_generated.path != null) return;
 
   var man = b.cache.obtain();
   defer man.deinit();
@@ -148,6 +184,8 @@ fn gclient_make(step: *Build.Step, _: *std.Progress.Node) !void {
 fn source_make(step: *Build.Step, _: *std.Progress.Node) !void {
   const self = @fieldParentPtr(Sdk, "source_step", step);
   const b = step.owner;
+
+  if (self.source_generated.path != null) return;
 
   var man = b.cache.obtain();
   defer man.deinit();
@@ -516,6 +554,10 @@ pub fn new(options: Options) !*Sdk {
   self.source_step.dependOn(&self.gclient_step);
   self.step.dependOn(&self.source_step);
   return self;
+}
+
+pub fn addInstallSourceStep(self: *Sdk, subdir: []const u8) *SourceInstallStep {
+  return SourceInstallStep.create(self, subdir) catch @panic("OOM");
 }
 
 pub fn install(self: *Sdk) void {
