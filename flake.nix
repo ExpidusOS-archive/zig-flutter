@@ -43,6 +43,8 @@
           runScript = "${zig}/bin/zig";
         };
 
+        VPYTHON_BYPASS = "manually managed python not supported by chrome operations";
+
         # Keep up to date with submodules
         sources = {
           "depot_tools" = pkgs.fetchgit {
@@ -59,7 +61,19 @@
           };
         };
 
+        depot_toolsFhsEnv = pkgs.buildFHSUserEnv {
+          name = "depot_tools";
+
+          targetPkgs = pkgs: with pkgs.buildPackages; [
+            (python3.withPackages (p: [ p.httplib2 p.six ]))
+            git
+            curl
+          ];
+        };
+
         configurePhase = ''
+          runHook preConfigure
+
           ${concatStrings (attrValues (mapAttrs (path: src: ''
             echo "Linking ${src} -> $NIX_BUILD_TOP/source/src/${path}"
             rm -rf $NIX_BUILD_TOP/source/src/${path}
@@ -69,6 +83,8 @@
           for name in cipd vpython3; do
             chmod +x $NIX_BUILD_TOP/source/src/depot_tools/$name
           done
+
+          runHook postConfigure
         '';
 
         mkPkg = { target ? null, engineHash ? fakeHash, buildFlags ? [] }@args:
@@ -94,7 +110,7 @@
               '';
             };
 
-            FLUTTER_SOURCE = pkgs.stdenv.mkDerivation {
+            FLUTTER_ENGINE = pkgs.stdenv.mkDerivation {
               pname = "zig-flutter-source${optionalString (target != null) "-${target}"}";
               inherit version configurePhase passthru src buildFlags gclient;
 
@@ -131,20 +147,25 @@
             };
           in pkgs.stdenv.mkDerivation {
             pname = "zig-flutter${optionalString (target != null) "-${target}"}";
-            inherit version configurePhase src FLUTTER_SOURCE gclient buildFlags;
+            inherit version configurePhase src gclient buildFlags VPYTHON_BYPASS;
 
             dontBuild = true;
 
+            buildInputs = [
+              FLUTTER_ENGINE
+            ];
+
             installPhase = ''
               export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
-              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=$FLUTTER_SOURCE $buildFlags
+              ls ${FLUTTER_ENGINE}
+              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=${FLUTTER_ENGINE} $buildFlags
             '';
           };
 
           packages = {
             default = mkPkg {
               target = null;
-              engineHash = "sha256-7q9ZzhylpNGTsJ20e8jYP3TDA0MZ+60QMJo+IMUTI3o=";
+              engineHash = "sha256-lAI8AqreeOR/xpPNUGOlvPDYjJ5GDSOSU4xj/eJ7ykE=";
             };
           } // mapAttrs (target: cfg: mkPkg (cfg // {
             inherit target;
@@ -154,7 +175,7 @@
               buildFlags = [];
             };
             "x86_64-linux-gnu" = {
-              engineHash = "sha256-7q9ZzhylpNGTsJ20e8jYP3TDA0MZ+60QMJo+IMUTI3o=";
+              engineHash = "sha256-lAI8AqreeOR/xpPNUGOlvPDYjJ5GDSOSU4xj/eJ7ykE=";
               buildFlags = [];
             };
           };
