@@ -171,7 +171,7 @@
             inherit target;
           })) {
             "wasm32-freestanding-musl" = {
-              engineHash = fakeHash;
+              engineHash = "sha256-4ouL8IpxOqUMY2kkgp3f/tBFxhC9qklTWUCNSCepiBE=";
               buildFlags = [];
             };
             "x86_64-linux-gnu" = {
