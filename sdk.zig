@@ -357,9 +357,6 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
       else => return step.fail("target {s} is not supported", .{ try self.options.target.zigTriple(b.allocator) }),
     };
 
-  try args.append("--target-os");
-  try args.append(target_flag);
-
   const cpu_flag = switch (self.options.target.getCpuArch()) {
     .arm, .armeb => "arm",
     .aarch64, .aarch64_be, .aarch64_32 => "aarch64",
@@ -369,15 +366,13 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     else => return step.fail("target {s} is not supported", .{ try self.options.target.zigTriple(b.allocator) }),
   };
 
-  if (cpu_flag) |value| {
-    try args.append(b.fmt("--{s}-cpu", .{ target_flag }));
-    try args.append(value);
-  }
+  const target_dir = if (cpu_flag) |value| b.fmt("{s}_{s}_{s}", .{ target_flag, debug_flag, value })
+    else b.fmt("{s}_{s}", .{ target_flag, debug_flag });
+
+  try args.append("--target-triple");
+  try args.append(try self.options.target.linuxTriple(b.allocator));
 
   if (self.build.sysroot) |sysroot| {
-    try args.append("--target-triple");
-    try args.append(try self.options.target.linuxTriple(b.allocator));
-
     try args.append("--target-sysroot");
     try args.append(sysroot);
   }
@@ -400,7 +395,7 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     self.generated.path = try std.fs.path.join(b.allocator, &.{
       sub_path,
       "out",
-      b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
+      target_dir,
     });
     return;
   }
@@ -419,8 +414,11 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   self.generated.path = try std.fs.path.join(b.allocator, &.{
     sub_path,
     "out",
-    b.fmt("{s}_{s}", .{ target_flag, debug_flag }),
+    target_dir,
   });
+
+  try args.append("--target-dir");
+  try args.append(target_dir);
 
   try args.append("--out-dir");
   try args.append(sub_path);
