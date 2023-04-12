@@ -22,7 +22,9 @@
         "flake-utils": "flake-utils",
         "home-manager": "home-manager",
         "mobile-nixos": "mobile-nixos",
-        "nixpkgs": "nixpkgs",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
         "zig-overlay": "zig-overlay"
       },
       "locked": {
@@ -89,25 +91,24 @@
       }
     },
     "nixpkgs": {
-      "flake": false,
       "locked": {
-        "lastModified": 1678408936,
-        "narHash": "sha256-IkLRXSXyBk4xiTvYYzXH/pffXjjLnygogbwm840gObQ=",
+        "lastModified": 1681334521,
+        "narHash": "sha256-Ddo1+6PhE+IxQ3+gGptEM6dI4dwshiRFm8wKS7nJxj4=",
         "owner": "ExpidusOS",
         "repo": "nixpkgs",
-        "rev": "afb813e67033a3c48dd7b417869fe51b607786cb",
+        "rev": "e115fd8b2e860ab1b2ca62684344a9a406897733",
         "type": "github"
       },
       "original": {
         "owner": "ExpidusOS",
-        "ref": "nixos-22.11",
         "repo": "nixpkgs",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
-        "expidus-sdk": "expidus-sdk"
+        "expidus-sdk": "expidus-sdk",
+        "nixpkgs": "nixpkgs"
       }
     },
     "zig-overlay": {

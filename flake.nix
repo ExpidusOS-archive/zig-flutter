@@ -9,9 +9,14 @@
     http2 = false;
   };
 
-  inputs.expidus-sdk.url = github:ExpidusOS/sdk/feat/refactor-neutron;
+  inputs.expidus-sdk = {
+    url = github:ExpidusOS/sdk/feat/refactor-neutron;
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
-  outputs = { self, expidus-sdk }:
+  inputs.nixpkgs.url = github:ExpidusOS/nixpkgs;
+
+  outputs = { self, expidus-sdk, ... }:
     with expidus-sdk.lib;
     flake-utils.eachSystem flake-utils.allSystems (system:
       let
@@ -31,13 +36,6 @@
             zlib
             git
             curl
-            (writeShellScriptBin "ssh" ''
-              if [ ! -f id_rsa ]; then
-                ${openssh}/bin/ssh-keygen -t rsa -N "" -f id_rsa > /dev/null
-              fi
-
-              ${openssh}/bin/ssh -i id_rsa.pub -o StrictHostKeyChecking=no "$@"
-            '')
           ];
 
           runScript = "${zig}/bin/zig";
@@ -61,16 +59,6 @@
           };
         };
 
-        depot_toolsFhsEnv = pkgs.buildFHSUserEnv {
-          name = "depot_tools";
-
-          targetPkgs = pkgs: with pkgs.buildPackages; [
-            (python3.withPackages (p: [ p.httplib2 p.six ]))
-            git
-            curl
-          ];
-        };
-
         configurePhase = ''
           runHook preConfigure
 
@@ -87,95 +75,37 @@
           runHook postConfigure
         '';
 
-        mkPkg = { target ? null, engineHash ? fakeHash, buildFlags ? [] }@args:
+        mkPkg = { target ? null, buildFlags ? [] }@args:
           let
             src = cleanSource self;
             buildFlags = (args.buildFlags or []) ++ optional (target != null) "-Dtarget=${target}";
-
-            passthru = {
-              inherit sources;
-            };
-
-            gclient = pkgs.stdenv.mkDerivation {
-              pname = "zig-flutter${optionalString (target != null) "-${target}"}.gclient";
-              inherit version configurePhase passthru src buildFlags;
-
-              dontBuild = true;
-
-              installPhase = ''
-                export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
-                ${fhsEnv}/bin/${fhsEnv.name} build gclient --prefix $NIX_BUILD_TOP/install $buildFlags
-                mv $NIX_BUILD_TOP/install/.gclient $out
-                sed -i "s|file://$NIX_BUILD_TOP/source/src/flutter|${sources.flutter.gitRepoUrl}@${sources.flutter.rev}|g" $out
-              '';
-            };
-
-            FLUTTER_ENGINE = pkgs.stdenv.mkDerivation {
-              pname = "zig-flutter-source${optionalString (target != null) "-${target}"}";
-              inherit version configurePhase passthru src buildFlags gclient;
-
-              dontBuild = true;
-
-              NIX_SSL_CERT_FILE = "${pkgs.buildPackages.cacert}/etc/ssl/certs/ca-bundle.crt";
-              SSL_CERT_FILE = "${pkgs.buildPackages.cacert}/etc/ssl/certs/ca-bundle.crt";
-
-              installPhase = ''
-                export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
-                ${fhsEnv}/bin/${fhsEnv.name} build source --prefix $out -Dgclient=$gclient $buildFlags
-
-                find $out -name '*.pyc' -type f -delete
-                find $out -name 'package_config.json' -type f -exec sed -i '/"generated": /d' {} \;
-                find $out -name '.git' -type d -exec ${pkgs.writeShellScript "fake-git" ''
-                  src=$1
-                  rm -rf $src
-                  mkdir -p $src/logs
-                  echo "${fakeHash}" >$src/logs/HEAD
-                ''} {} \;
-
-                cp ${pkgs.writeText "fake-git.py" ''
-                  #!${pkgs.python3}/bin/python3
-
-                  print("${fakeHash}")
-                ''} $out/src/flutter/build/git_revision.py
-              '';
-
-              dontFixup = true;
-
-              outputHashAlgo = "sha256";
-              outputHashMode = "recursive";
-              outputHash = engineHash;
-            };
           in pkgs.stdenv.mkDerivation {
             pname = "zig-flutter${optionalString (target != null) "-${target}"}";
-            inherit version configurePhase src gclient buildFlags VPYTHON_BYPASS;
+            inherit version configurePhase src buildFlags VPYTHON_BYPASS;
+
+            FLUTTER_ENGINE = pkgs.flutter-engine.src.overrideAttrs (_: _: {
+              outputHash = "sha256-26EksO3VByrvbWH2Q6+mrjVQaoOskvq0WdBBqjiA9K8=";
+            });
 
             dontBuild = true;
 
-            buildInputs = [
-              FLUTTER_ENGINE
-            ];
-
             installPhase = ''
               export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
-              ls ${FLUTTER_ENGINE}
-              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=${FLUTTER_ENGINE} $buildFlags
+              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=$FLUTTER_ENGINE $buildFlags
             '';
           };
 
           packages = {
             default = mkPkg {
               target = null;
-              engineHash = "sha256-lAI8AqreeOR/xpPNUGOlvPDYjJ5GDSOSU4xj/eJ7ykE=";
             };
           } // mapAttrs (target: cfg: mkPkg (cfg // {
             inherit target;
           })) {
             "wasm32-freestanding-musl" = {
-              engineHash = "sha256-4ouL8IpxOqUMY2kkgp3f/tBFxhC9qklTWUCNSCepiBE=";
               buildFlags = [];
             };
             "x86_64-linux-gnu" = {
-              engineHash = "sha256-lAI8AqreeOR/xpPNUGOlvPDYjJ5GDSOSU4xj/eJ7ykE=";
               buildFlags = [];
             };
           };
