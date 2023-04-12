@@ -374,10 +374,10 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
     try args.append(value);
   }
 
-  try args.append("--target-triple");
-  try args.append(try self.options.target.linuxTriple(b.allocator));
-
   if (self.build.sysroot) |sysroot| {
+    try args.append("--target-triple");
+    try args.append(try self.options.target.linuxTriple(b.allocator));
+
     try args.append("--target-sysroot");
     try args.append(sysroot);
   }
