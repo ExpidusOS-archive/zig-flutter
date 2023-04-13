@@ -43,6 +43,10 @@
 
         VPYTHON_BYPASS = "manually managed python not supported by chrome operations";
 
+        FLUTTER_ENGINE = pkgs.flutter-engine.src.overrideAttrs (_: _: {
+          outputHash = "sha256-TKXyq++Uq0tKKu96FxcavMuEZcpz0WTmWE2PyVtor8U=";
+        });
+
         # Keep up to date with submodules
         sources = {
           "depot_tools" = pkgs.fetchgit {
@@ -51,12 +55,7 @@
             rev = "61ebd177abdc56bd373fc05c0101e2e506f9d758";
             sha256 = "sha256-JHzNj5lR93s8gZC68YX+WZgJy6k5ioYGq4MeCwWvXtA=";
           };
-          "flutter" = pkgs.fetchFromGitHub {
-            owner = "flutter";
-            repo = "engine";
-            rev = "ec975089acb540fc60752606a3d3ba809dd1528b";
-            sha256 = "sha256-pin+VZbO54RxmTxBpdK+1xatGZq20phLeSSCl+WKHUI=";
-          };
+          "flutter" = "${FLUTTER_ENGINE}/src/flutter";
         };
 
         configurePhase = ''
@@ -81,17 +80,33 @@
             buildFlags = (args.buildFlags or []) ++ optional (target != null) "-Dtarget=${target}";
           in pkgs.stdenv.mkDerivation {
             pname = "zig-flutter${optionalString (target != null) "-${target}"}";
-            inherit version configurePhase src buildFlags VPYTHON_BYPASS;
+            inherit version configurePhase src buildFlags VPYTHON_BYPASS FLUTTER_ENGINE;
+            inherit (FLUTTER_ENGINE) gclient;
 
-            FLUTTER_ENGINE = pkgs.flutter-engine.src.overrideAttrs (_: _: {
-              outputHash = "sha256-26EksO3VByrvbWH2Q6+mrjVQaoOskvq0WdBBqjiA9K8=";
-            });
+            engineExecs = [
+              "src/third_party/dart/tools/sdks/dart-sdk/bin/dart"
+              "src/third_party/dart/build/gn_run_binary.py"
+              "src/flutter/third_party/gn/gn"
+            ];
+
+            postUnpack = ''
+              cp -r -P --no-preserve=ownership,mode $FLUTTER_ENGINE $NIX_BUILD_TOP/flutter-engine
+              for name in ''${engineExecs[@]}; do
+                chmod +x $NIX_BUILD_TOP/flutter-engine/$name
+              done
+
+              rm -rf $NIX_BUILD_TOP/flutter-engine/src/buildtools
+              ln -s $FLUTTER_ENGINE/src/buildtools $NIX_BUILD_TOP/flutter-engine/src/buildtools
+
+              rm -rf $NIX_BUILD_TOP/flutter-engine/src/build/linux
+              ln -s $FLUTTER_ENGINE/src/build/linux $NIX_BUILD_TOP/flutter-engine/src/build/linux
+            '';
 
             dontBuild = true;
 
             installPhase = ''
               export XDG_CACHE_HOME=$NIX_BUILD_TOP/.cache
-              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=$FLUTTER_ENGINE $buildFlags
+              ${fhsEnv}/bin/${fhsEnv.name} build --prefix $out -Dgclient=$gclient -Dsource=$NIX_BUILD_TOP/flutter-engine $buildFlags
             '';
           };
 
