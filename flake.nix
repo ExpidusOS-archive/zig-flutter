@@ -43,9 +43,7 @@
 
         VPYTHON_BYPASS = "manually managed python not supported by chrome operations";
 
-        FLUTTER_ENGINE = pkgs.flutter-engine.src.overrideAttrs (_: _: {
-          outputHash = "sha256-TKXyq++Uq0tKKu96FxcavMuEZcpz0WTmWE2PyVtor8U=";
-        });
+        FLUTTER_ENGINE = pkgs.flutter-engine.src;
 
         # Keep up to date with submodules
         sources = {
