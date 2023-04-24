@@ -344,6 +344,8 @@ fn make(step: *Build.Step, _: *std.Progress.Node) !void {
   try args.append("--runtime-mode");
   try args.append(debug_flag);
 
+  if (self.options.optimize == .Debug) try args.append("--unoptimized");
+
   if (self.options.target.getCpuArch().isWasm()) try args.append("--web");
 
   const target_flag = if (self.options.target.getAbi() == .android) "android"
